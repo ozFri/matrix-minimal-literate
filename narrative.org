@@ -1,0 +1,342 @@
+* WikiD
+  WikiD is a tool for allowing a large group of people to have
+  meaningful communication.
+  We start our journey with a simple web app
+** Chapter 1 - Files
+  Like all web apps it neads an index file:
+*** index.html
+    #+NAME: index
+    #+BEGIN_SRC html :noweb yes :tangle ./resources/public/index.html :comments noweb
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8"/>
+          <title>WikiD</title>
+        </head>
+        <body>
+          <div id="app"></div>
+          <script src="js/main.js"></script>
+        </body>
+      </html>
+    #+END_SRC
+*** Build
+     And like all clojure apps, it needs some build configuration
+**** deps.edn
+     We center our clojure dependencies on a deps.end file, using the official
+     clj build tool
+        #+NAME: deps.edn
+        #+BEGIN_SRC clojurescript :noweb yes :tangle ./deps.edn :comments noweb
+           {:source-paths ["src/cljs"]
+            :aliases      {:dev       {:extra-paths ["src/clj" "src/cljs" "env/dev" "target"]}
+                           :shadow-cljs
+                           {:extra-deps {thheller/shadow-cljs {:mvn/version "2.10.4"}}
+                            :main-opts  ["-m" "shadow.cljs.devtools.cli"]}
+                           },
+            :deps  {org.clojure/clojure       {:mvn/version "RELEASE"},
+                    org.clojure/clojurescript {:mvn/version "RELEASE"},
+                    thheller/shadow-cljs      {:mvn/version "2.10.4"}
+                    binaryage/devtools        {:mvn/version "1.0.0"},
+                    <<project-dependencies>>
+                    },
+            :paths ["resources"  "test/cljs" "src/clj" "src/cljs"]}     
+        #+END_SRC
+**** .shadow-cljs.edn
+     For clojurescript, we need a few more build steps, and we choose
+     shadow-cljs for it, as well as for the hot code reloading it provides.
+     #+NAME: shadow-cljs
+     #+BEGIN_SRC clojurescript :noweb yes :tangle ./shadow-cljs.edn :comments noweb
+              {:deps   {:aliases [:dev]}
+               :nrepl  {:port 7002}
+               :builds {:app {:target     :browser
+                              :asset-path "js"
+                              :output-dir "resources/public/js"
+                              :modules    {:main {:entries [wikid.core]
+                                                  :init-fn wikid.core/init
+                                                  :preloads [devtools.preload]}}
+                              :devtools   {
+                                           :http-port  8021
+                                           :http-root  "resources/public/"
+                                           :after-load wikid.core/re-render
+                                           :preloads   [shadow.remote.runtime.cljs.browser]}}}}
+     #+END_SRC
+   
+*** Build
+    To our project dependences we are added a bunch of packages called
+    Matrix, by Kenny Tilton.
+    Matrix is a framework for FRP programming on the client,
+    Based on the dataflow or spreadsheet model.
+    What it means is that it provides a simple way to update the DOM
+    Incrementally, as well as a smart and powerful way to manage state.
+    We use it because we are minimalists, and our project is going to be BIG.
+    #+NAME:project-dependencies
+    #+BEGIN_SRC clojure
+      tiltontec/matrix          {:mvn/version "0.1.5-SNAPSHOT"}
+      tiltontec/mxweb           {:mvn/version "0.1.5-SNAPSHOT"}
+      tiltontec/mxxhr           {:mvn/version "0.1.2-SNAPSHOT"}
+      funcool/bide              {:mvn/version "1.5.0"}
+    #+END_SRC
+*** core.cljs
+    Project you said?
+    Well here it is, it all starts with a core file.
+    This core defines what is mounted and what gets rendererd or re-rendered
+    In our app, we will get to the details later.
+    The rest is some ceremony so shadow-cljs will load and reload the app
+    correctly.
+    #+NAME: core
+    #+BEGIN_SRC clojurescript :noweb yes :tangle ./src/cljs/wikid/core.cljs :comments noweb
+      (ns wikid.core
+        (:require
+         <<core-requirements>>
+         
+         ))
+
+        <<mount-function>>
+
+      (defn ^:after-load re-render []
+        (mount-root))
+
+      (defn ^:export init []
+        (mount-root))
+
+      (defonce init-block (init))
+    #+END_SRC
+*** App
+    So what do we want to mount here?
+    We want to mount an app.
+    A matrix app that is.
+    Let's look at our mount-function
+    #+NAME:mount-function
+    #+BEGIN_SRC clojure
+      (defn mount-root []
+        (let [root       (dom/getElement "app")
+              app-matrix (matrix-build!)]
+          (set! (.-innerHTML root) nil)
+          (dom/appendChild root
+                           (tag-dom-create
+                             (<mget app-matrix :mx-dom)))))
+    #+END_SRC
+    
+    We get the element into which we want to mount the app.
+    And we endow a var with the result of the function (matrix-build!)
+    Next we append to our root the result of a function called
+    (tag-dom-creates) whose variable is the expression
+    (<mget app-matrix :mx-dom)
+    Unfortunately, we are already knee deep in matrix code.
+    But we are optimistic.
+    
+    tag-dom-create
+    Well, tag is our dom library, and it must spit out dom elements to get
+    along with the js.
+    
+    <mget, is more mysterious.
+    To understand it we need some context from the matrix code.
+    #+begin_src clojure
+      (defn md-get [me slot]
+        ;; (trx :md-get slot me)
+        (assert me (str "md-get passed nil for me accessing slot: " slot))
+        (when (any-ref? me)
+          (if-let [c (md-cell me slot)]
+            (c-get c)
+            (slot @me))))
+
+      (defn <mget [me slot] (md-get me slot))
+    #+end_src
+    
+    Turns out <mget is all sugar. his brother, md-get Takes something called
+    "me" -that is the result of matrix-build! in our case - and a "slot"
+    That is :mx-dom in our case.
+    
+    Eventually, if all things are positice, <mget returns an evaluation
+    of the query :slot from the dereffed @me
+    
+    Sorry, english:
+    me is prbably a map of keys and values stored as an atom,
+    We check for the current value of the atom with reference to the key mx-dom.
+    That is, we get the dom defined by our app.
+    
+    Now, the relationship between :mx-dom and tag-dom-create is interesting
+    Because somewhere between them we lose the virtual dom.
+    However, we will leave it a mystery for now.
+    
+    
+*** matrix-build!
+    
+    Instead let's look at our matrix-build! function
+    #+NAME: matrix/matrix-build
+    #+BEGIN_SRC clojure :noweb yes
+      (defn matrix-build! []
+        (reset! md/matrix
+                ;; now we provide an optional "type" to support Matrix node space search
+                (md/make ::md/wikidApp
+                         ;;
+                         ;; HTML tag syntax is (<tag> [dom-attribute-map [custom-property map] children*]
+                         ;;
+                         <<matrix/cells-and-values>>
+                         :mx-dom (cFonce
+                                   (with-par me
+                                     <<matrix/dom-expression>>
+                                     )))))
+    #+END_SRC
+    Matrix build is going to be a little lengthy, and at fault for this is
+    md/make. 
+    
+    md/matrix is just an atom. md/make takes a long lists of keys and values as
+    arguments, one of them is the already famous :mx-dom. For each of these
+    keys, there is a cell or sometimes just a value defined. md/make turns
+    them into, what I believe will be a plain dom data, Eventually matrix is
+    reset to the results of md/make. From the matrix atom hatches an app, state
+    included.
+    
+    Let's look again at :mx-dom, it's base is a function called cFonce.
+    cF stands for formulaic cell, and once usually mean "run this only once"
+    We calculate the :mx-dom value from running a formula using the initial
+    values of our matrix.
+    This in turn, will be the initial state of our application.
+    
+    with-par me must be a handy little macro that stick a parameter called me
+    into everything. I assume it threads first(is this english?).
+    
+*** What's in an app?
+    So we have cells that take input, and we have
+    cells that calculate forumulas and spit output.
+    Look at these for example.
+    #+NAME:matrix/cells-and-values
+    #+BEGIN_SRC clojure
+      :statements (statement-list statements)
+      :input (cI "")
+    #+END_SRC
+    Each cell gets an initial value, in the case of :statements,
+    let's give it a bunch of statements
+    #+NAME:matrix/statements
+    #+BEGIN_SRC clojure
+      (def statements
+              ["Roses are red"
+               "Violets are blue"
+               "Socrates is mortal"
+               "And so are you"])
+    #+END_SRC
+    
+    In the case of :input, it gets "", poor input. You will notice :input is
+    declared as an input cell! I mean, (cI). What about :statements ?
+
+    You won't believe it! :statement gets its own (md/make) call.
+    
+    Yo Dawg, that's pretty recursive, but we're lisping, we should've
+    anticipated this. Turns out our spreadsheet include input cells, formulaic
+    cells, and other components that is smaller matrix. What's interesting is
+    that we are able to use the components inside our matrix, so the recursion
+    stops somewhere, or sometimes at least.
+    
+    #+NAME:matrix/dom-expression
+    #+BEGIN_SRC clojure 
+      (section {:class "todoapp" :style "padding:24px"}
+               (header {:class "header"}
+                       (h1 "WikiD")
+                       (input-bar)
+                       (statement-items-list)
+                       ))
+    #+END_SRC
+
+*** matrix.cljs
+    #+NAME: matrix
+    #+BEGIN_SRC clojurescript :noweb yes :tangle ./src/cljs/wikid/matrix.cljs :comments noweb
+      (ns wikid.matrix
+        (:require
+         [tiltontec.util.core :as util]
+         [tiltontec.cell.core :refer-macros [cF cFn cFonce ] :refer [cI]]
+         [tiltontec.model.core
+                                              ; todo trim
+          :refer-macros [with-par]
+          :refer [kid-values-kids matrix <mget mswap!> mxu-find-type] :as md]
+         [mxweb.gen
+          :refer-macros [section header h1 ul
+                         li input]]
+         [clojure.string :as str]
+         [goog.dom.forms :as form]))
+
+      <<matrix/statements>>
+      (declare td-deleted td-completed make-todo)
+
+      (defn make-statement
+        "Make a matrix incarnation of a statement item"
+        [title]
+        ;; So we key off a UUID for when we get to persistence, record a
+        ;; fixed creation time, use a timestamp to denote "completed", and
+        ;; use another timestamp for logical deletion.
+        (md/make
+          :id (util/uuidv4)
+          :created (util/now)
+
+          ;; we wrap mutable slots as Cells...
+          :title (cI title)))
+
+      (defn mx-find-matrix [mx]
+        (assert mx)
+        (mxu-find-type mx ::md/wikidApp))
+
+      (defn mx-statements
+        "Given a node in the matrix, navigate to the root and read the todos. After
+                         the matrix is initially loaded (say in an event handler), one can pass nil
+                         and find the matrix in @matrix. Put another way, a starting node is required
+                         during the matrix's initial build."
+        ([]
+         (<mget @matrix :statements))
+
+        ([mx]
+         (if (nil? mx)
+           (mx-statements)
+           (let [mtrx (mx-find-matrix mx)]
+             (assert mtrx)
+             (<mget mtrx :statements)))))
+
+      (defn statement-list [seed-statements]
+        (md/make ::statements
+                 :statements-raw (cFn (for [s seed-statements]
+                                        (make-statement s)))
+                 ))
+
+      (defn input-bar []
+        (input {:class       "input-bar"
+                ;;           :autofocus   true
+                :placeholder "State your mind"
+                :onkeypress  #(when (= (.-key %) "Enter")
+                                (let [raw   (form/getValue (.-target %))
+                                      title (str/trim raw)]
+                                  (when-not (str/blank? title)
+                                    (mswap!> (<mget @matrix :statements)
+                                             :statements-raw conj (make-statement title)))
+                                  ;;                                 (make-todo title)))
+                                  (form/setValue (.-target %) "")))}))
+
+      (defn statement-items-list []
+        (section {:class "main"}
+                 (ul {:class "statement-list"}
+                     {:kid-values  (cF (<mget (mx-statements me) :statements-raw))
+                      :kid-key     #(<mget % :statement)
+                      :kid-factory (fn [me statement]
+                                     (li (<mget statement :title)))}
+                     ;; cache is prior value for this implicit 'kids' slot; k-v-k uses it for diffing
+                     (kid-values-kids me cache))))
+      <<matrix/matrix-build>>
+    #+END_SRC
+*** routing stuff
+    #+BEGIN_SRC clojure
+      ;; Route should extract name from url and render the appropriate inode.
+
+      ["/statements/<name>" (render-i-node get-i-node-by-name name)]
+      ;;A bunch of urls our website will include
+      ["/statement/we-should-party/context/covid19/vote/disagree"
+       "/context/covid19/statement/we-should-party/schema/supporting"
+       "/user/max/authored/statement/search?query=''"
+       "/user/max/authored/statement/search?query=''/last/10"
+       ]
+    #+END_SRC
+    #+NAME:core-requirements
+    #+BEGIN_SRC clojure
+      [goog.dom :as dom]
+
+      [tiltontec.model.core :refer [<mget] :as md]
+      [mxweb.html :refer [tag-dom-create]]
+      [wikid.matrix :refer [matrix-build!]]
+    #+END_SRC
+    
