@@ -1,9 +1,9 @@
-* WikiD
-  WikiD is a tool for allowing a large group of people to have
-  meaningful communication.
-  We start our journey with a simple web app
+* Tada
+  Tada is not a todo list, its just a list where people can add arbitrary
+  statements and leave it at that, it's purpose is to serve a very simple case
+  for using Matrix, and to be written in a Literate Programming style.
 ** Chapter 1 - Files
-  Like all web apps it neads an index file:
+  Like all web apps it needs an index file:
 *** index.html
     #+NAME: index
     #+BEGIN_SRC html :noweb yes :tangle ./resources/public/index.html :comments noweb
@@ -11,7 +11,7 @@
       <html lang="en">
         <head>
           <meta charset="UTF-8"/>
-          <title>WikiD</title>
+          <title>Tada</title>
         </head>
         <body>
           <div id="app"></div>
@@ -20,9 +20,9 @@
       </html>
     #+END_SRC
 *** Build
-     And like all clojure apps, it needs some build configuration
+     And like all Clojure apps, it needs some build configuration
 **** deps.edn
-     We center our clojure dependencies on a deps.end file, using the official
+     We center our Clojure dependencies on a deps.end file, using the official
      clj build tool
         #+NAME: deps.edn
         #+BEGIN_SRC clojurescript :noweb yes :tangle ./deps.edn :comments noweb
@@ -50,21 +50,21 @@
                :builds {:app {:target     :browser
                               :asset-path "js"
                               :output-dir "resources/public/js"
-                              :modules    {:main {:entries [wikid.core]
-                                                  :init-fn wikid.core/init
+                              :modules    {:main {:entries [tada.core]
+                                                  :init-fn tada.core/init
                                                   :preloads [devtools.preload]}}
                               :devtools   {
                                            :http-port  8021
                                            :http-root  "resources/public/"
-                                           :after-load wikid.core/re-render
+                                           :after-load tada.core/re-render
                                            :preloads   [shadow.remote.runtime.cljs.browser]}}}}
      #+END_SRC
    
 *** Build
-    To our project dependences we are added a bunch of packages called
+    To our project dependencies we are added a bunch of packages called
     Matrix, by Kenny Tilton.
     Matrix is a framework for FRP programming on the client,
-    Based on the dataflow or spreadsheet model.
+    Based on the data-flow or spreadsheet model.
     What it means is that it provides a simple way to update the DOM
     Incrementally, as well as a smart and powerful way to manage state.
     We use it because we are minimalists, and our project is going to be BIG.
@@ -78,13 +78,13 @@
 *** core.cljs
     Project you said?
     Well here it is, it all starts with a core file.
-    This core defines what is mounted and what gets rendererd or re-rendered
+    This core defines what is mounted and what gets rendered or re-rendered
     In our app, we will get to the details later.
     The rest is some ceremony so shadow-cljs will load and reload the app
     correctly.
     #+NAME: core
-    #+BEGIN_SRC clojurescript :noweb yes :tangle ./src/cljs/wikid/core.cljs :comments noweb
-      (ns wikid.core
+    #+BEGIN_SRC clojurescript :noweb yes :tangle ./src/cljs/tada/core.cljs :comments noweb
+      (ns tada.core
         (:require
          <<core-requirements>>
          
@@ -130,7 +130,7 @@
     
     <mget, is more mysterious.
     To understand it we need some context from the matrix code.
-    #+begin_src clojure
+    #+BEGIN_SRC clojure
       (defn md-get [me slot]
         ;; (trx :md-get slot me)
         (assert me (str "md-get passed nil for me accessing slot: " slot))
@@ -140,17 +140,17 @@
             (slot @me))))
 
       (defn <mget [me slot] (md-get me slot))
-    #+end_src
+    #+END_SRC
     
     Turns out <mget is all sugar. his brother, md-get Takes something called
     "me" -that is the result of matrix-build! in our case - and a "slot"
     That is :mx-dom in our case.
     
-    Eventually, if all things are positice, <mget returns an evaluation
+    Eventually, if all things are positive, <mget returns an evaluation
     of the query :slot from the dereffed @me
     
-    Sorry, english:
-    me is prbably a map of keys and values stored as an atom,
+    Sorry, English:
+    me is probably a map of keys and values stored as an atom,
     We check for the current value of the atom with reference to the key mx-dom.
     That is, we get the dom defined by our app.
     
@@ -167,7 +167,7 @@
       (defn matrix-build! []
         (reset! md/matrix
                 ;; now we provide an optional "type" to support Matrix node space search
-                (md/make ::md/wikidApp
+                (md/make ::md/tadaApp
                          ;;
                          ;; HTML tag syntax is (<tag> [dom-attribute-map [custom-property map] children*]
                          ;;
@@ -194,7 +194,7 @@
     This in turn, will be the initial state of our application.
     
     with-par me must be a handy little macro that stick a parameter called me
-    into everything. I assume it threads first(is this english?).
+    into everything. I assume it threads first(is this English?).
     
 *** What's in an app?
     So we have cells that take input, and we have
@@ -231,7 +231,7 @@
     #+BEGIN_SRC clojure 
       (section {:class "todoapp" :style "padding:24px"}
                (header {:class "header"}
-                       (h1 "WikiD")
+                       (h1 "Tada")
                        (input-bar)
                        (statement-items-list)
                        ))
@@ -239,8 +239,8 @@
 
 *** matrix.cljs
     #+NAME: matrix
-    #+BEGIN_SRC clojurescript :noweb yes :tangle ./src/cljs/wikid/matrix.cljs :comments noweb
-      (ns wikid.matrix
+    #+BEGIN_SRC clojurescript :noweb yes :tangle ./src/cljs/tada/matrix.cljs :comments noweb
+      (ns tada.matrix
         (:require
          [tiltontec.util.core :as util]
          [tiltontec.cell.core :refer-macros [cF cFn cFonce ] :refer [cI]]
@@ -272,7 +272,7 @@
 
       (defn mx-find-matrix [mx]
         (assert mx)
-        (mxu-find-type mx ::md/wikidApp))
+        (mxu-find-type mx ::md/tadaApp))
 
       (defn mx-statements
         "Given a node in the matrix, navigate to the root and read the todos. After
@@ -337,6 +337,6 @@
 
       [tiltontec.model.core :refer [<mget] :as md]
       [mxweb.html :refer [tag-dom-create]]
-      [wikid.matrix :refer [matrix-build!]]
+      [tada.matrix :refer [matrix-build!]]
     #+END_SRC
     

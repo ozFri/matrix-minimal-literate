@@ -1,4 +1,4 @@
-(ns wikid.matrix
+(ns tada.matrix
 (:require
 [tiltontec.util.core :as util]
 [tiltontec.cell.core :refer-macros [cF cFn cFonce ] :refer [cI]]
@@ -30,7 +30,7 @@ li input]]
 :title (cI title)))
 (defn mx-find-matrix [mx]
 (assert mx)
-(mxu-find-type mx ::md/wikidApp))
+(mxu-find-type mx ::md/tadaApp))
 (defn mx-statements
 "Given a node in the matrix, navigate to the root and read the todos. After
 the matrix is initially loaded (say in an event handler), one can pass nil
@@ -73,7 +73,7 @@ title (str/trim raw)]
 (defn matrix-build! []
 (reset! md/matrix
 ;; now we provide an optional "type" to support Matrix node space search
-(md/make ::md/wikidApp
+(md/make ::md/tadaApp
 ;;
 ;; HTML tag syntax is (<tag> [dom-attribute-map [custom-property map] children*]
 ;;
@@ -83,7 +83,7 @@ title (str/trim raw)]
 (with-par me
 (section {:class "todoapp" :style "padding:24px"}
 (header {:class "header"}
-(h1 "WikiD")
+(h1 "Tada")
 (input-bar)
 (statement-items-list)
 ))

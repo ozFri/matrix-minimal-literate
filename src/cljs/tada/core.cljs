@@ -1,9 +1,9 @@
-(ns wikid.core
+(ns tada.core
 (:require
 [goog.dom :as dom]
 [tiltontec.model.core :refer [<mget] :as md]
 [mxweb.html :refer [tag-dom-create]]
-[wikid.matrix :refer [matrix-build!]]
+[tada.matrix :refer [matrix-build!]]
 ))
 (defn mount-root []
 (let [root (dom/getElement "app")
