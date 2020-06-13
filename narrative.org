@@ -61,13 +61,15 @@
      #+END_SRC
    
 *** Build
-    To our project dependencies we are added a bunch of packages called
+    To our project dependencies we are adding a bunch of packages called
     Matrix, by Kenny Tilton.
     Matrix is a framework for FRP programming on the client,
-    Based on the data-flow or spreadsheet model.
-    What it means is that it provides a simple way to update the DOM
-    Incrementally, as well as a smart and powerful way to manage state.
-    We use it because we are minimalists, and our project is going to be BIG.
+    It uses a data-flow or spreadsheet model to manage state.
+    It provides a fine grained state management, and in turn, 
+    a powerful to update the dom incrementally and directly, without using
+    React.js or it's friends.
+    
+    
     #+NAME:project-dependencies
     #+BEGIN_SRC clojure
       tiltontec/matrix          {:mvn/version "0.1.5-SNAPSHOT"}
@@ -126,7 +128,7 @@
     
     tag-dom-create
     Well, tag is our dom library, and it must spit out dom elements to get
-    along with the js.
+    along with appendChild.
     
     <mget, is more mysterious.
     To understand it we need some context from the matrix code.
@@ -193,8 +195,8 @@
     values of our matrix.
     This in turn, will be the initial state of our application.
     
-    with-par me must be a handy little macro that stick a parameter called me
-    into everything. I assume it threads first(is this English?).
+    (with-par me ... ) must be a handy little macro that sticks a parameter
+    called me into everything. I assume it threads first(is this English?).
     
 *** What's in an app?
     So we have cells that take input, and we have
@@ -222,8 +224,8 @@
     You won't believe it! :statement gets its own (md/make) call.
     
     Yo Dawg, that's pretty recursive, but we're lisping, we should've
-    anticipated this. Turns out our spreadsheet include input cells, formulaic
-    cells, and other components that is smaller matrix. What's interesting is
+    anticipated this. Turns out our spreadsheet includes input cells, formulaic
+    cells, and other components that are smaller matrixes. What's interesting is
     that we are able to use the components inside our matrix, so the recursion
     stops somewhere, or sometimes at least.
     
